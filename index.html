@@ -23,10 +23,14 @@
 
 <body>
     <canvas id="board"></canvas>
+    <canvas id="line"></canvas>
     <canvas id="above"></canvas>
     <script>
         const board = document.querySelector("#board");
         const ctxb = board.getContext("2d");
+
+        const trace = document.querySelector("#line");
+        const ctxl = trace.getContext("2d");
 
         const above = document.querySelector("#above");
         const ctxa = above.getContext("2d");
@@ -43,6 +47,8 @@
         let mouseX = 0;
         let mouseY = 0;
         let draw = false;
+        let lines = [];
+        let currentLine = [];
 
         const brushSizes = {
             "small": 4,
@@ -67,7 +73,6 @@
         let type = "a";
         let oldType = "a";
         let strength = 5;
-        let counter = 0;
 
         function drawCursor(x, y, size, type) {
             ctxa.fillStyle = "#ffffff";
@@ -104,50 +109,53 @@
             drawCursor(mouseX, mouseY, size, type);
         }
 
-        function drawBoard() {
-            if (!draw)
-                return;
-            ctxb.lineCap = "round";
+        function drawLine(ctx, line) {
+            trace.width = WIDTH;
+            trace.height = HEIGHT;
+
+            let str = "";
+            for (let i = 0; i < line.length; i++) {
+                str += line[i];
+                str += "  ";
+            }
+            console.log(str);
+
+            ctx.lineCap = "round";
             for (let i = 0; i < 5; i++) {
-                ctxb.strokeStyle = "rgba(" + colors[type] + ", " + (Math.pow(2, i + strength - 5) / 16) + ")";
+                ctx.beginPath();
+
+                ctx.strokeStyle = "rgba(" + colors[type] + ", " + (Math.pow(2, i + strength - 5) / 16) + ")";
+
                 if (type == "erase")
-                    ctxb.lineWidth = eraserSizes[size] * 2 - 2 * i;
+                    ctx.lineWidth = eraserSizes[size] * 2 - 2 * i;
                 else
-                    ctxb.lineWidth = brushSizes[size] * 2 - 2 * i;
-                ctxb.moveTo(superOldMouseX, superOldMouseY);
-                ctxb.bezierCurveTo(reallyOldMouseX, reallyOldMouseY, oldMouseX, oldMouseY, mouseX, mouseY);
+                    ctx.lineWidth = brushSizes[size] * 2 - 2 * i;
+
+                for (let j = 0; j + 3 < line.length; j += 3) {
+                    ctx.moveTo(line[j][0], line[j][1]);
+                    ctx.bezierCurveTo(line[j + 1][0], line[j + 1][1], line[j + 2][0], line[j + 2][1], line[j + 3][0], line[j + 3][1]);
+                }
+
+                let c = (line.length - 1) % 3;
+                if (c == 1) {
+                    ctx.moveTo(line[line.length - 2][0], line[line.length - 2][1]);
+                    ctx.lineTo(line[line.length - 1][0], line[line.length - 1][1]);
+                }
+                if (c == 2) {
+                    ctx.moveTo(line[line.length - 3][0], line[line.length - 3][1]);
+                    ctx.quadraticCurveTo(line[line.length - 2][0], line[line.length - 2][1], line[line.length - 1][0], line[line.length - 1][1]);
+                }
+                ctx.stroke();
+
+                if (line.length == 0) {
+                    ctx.beginPath();
+                    putDot(line[line.length - 1][0], line[line.length - 1][1]);
+                    ctx.fill();
+                }
             }
         }
 
-        function finishStroke() {
-            if (!draw)
-                return;
-            ctxb.lineCap = "round";
-            for (let i = 0; i < 5; i++) {
-                ctxb.strokeStyle = "rgba(" + colors[type] + ", " + (Math.pow(2, i + strength - 5) / 16) + ")";
-                if (type == "erase")
-                    ctxb.lineWidth = eraserSizes[size] * 2 - 2 * i;
-                else
-                    ctxb.lineWidth = brushSizes[size] * 2 - 2 * i;
-                if (counter == 1) {
-                    ctxb.moveTo(oldMouseX, oldMouseY);
-                    ctxb.lineTo(mouseX, mouseY);
-                }
-                if (counter == 2) {
-                    ctxb.moveTo(reallyOldMouseX, reallyOldMouseY);
-                    ctxb.quadraticCurveTo(oldMouseX, oldMouseY, mouseX, mouseY);
-                }
-                ctxb.stroke();
-                if (counter == 0 && oldMouseX == mouseX && oldMouseY == mouseY) {
-                    ctxb.beginPath();
-                    putDot();
-                    ctxb.fill();
-                }
-            }
-        }
-
-        function putDot() {
-            console.log("dot");
+        function putDot(x, y) {
             for (let i = 0; i < strength; i++) {
                 ctxb.fillStyle = "rgba(" + colors[type] + ", " + (Math.pow(2, i) / 16) + ")";
                 let r = 0;
@@ -155,7 +163,7 @@
                     r = eraserSizes[size] - i;
                 else
                     r = brushSizes[size] - i;
-                ctxb.arc(mouseX, mouseY, r, 0, 2 * Math.PI);
+                ctxb.arc(x, y, r, 0, 2 * Math.PI);
             }
         }
 
@@ -169,9 +177,11 @@
             mouseX = event.pageX;
             mouseY = event.pageY;
             drawAbove();
-            counter = (counter + 1) % 3;
-            if (counter == 0)
-                drawBoard();
+            if (draw) {
+                currentLine.push([mouseX, mouseY]);
+
+                drawLine(ctxl, currentLine);
+            }
         });
         document.addEventListener("keydown", (event) => {
             if (event.key == "q")
@@ -196,10 +206,15 @@
                     reallyOldMouseY = mouseY;
                     oldMouseX = mouseX;
                     oldMouseY = mouseY;
+
                     draw = true;
+
                     oldType = type;
                     type = "erase";
-                    ctxb.beginPath();
+
+                    currentLine.push([mouseX, mouseY]);
+
+                    drawLine(ctxl, currentLine);
                 }
             }
             if (event.key == "a")
@@ -210,15 +225,31 @@
                 size = "large";
             if (event.key == "f") {
                 if (!draw) {
-                    counter == 0;
                     superOldMouseX = mouseX;
                     superOldMouseY = mouseY;
                     reallyOldMouseX = mouseX;
                     reallyOldMouseY = mouseY;
                     oldMouseX = mouseX;
                     oldMouseY = mouseY;
+
                     draw = true;
-                    ctxb.beginPath();
+
+                    currentLine.push([mouseX, mouseY]);
+
+                    drawLine(ctxl, currentLine);
+                }
+            }
+            if (event.key === "Backspace" || event.key === "Delete") {
+                lines.pop();
+
+                board.width = WIDTH;
+                board.height = HEIGHT;
+
+                ctxb.fillStyle = "rgb(" + colors["erase"] + ")";
+                ctxb.fillRect(0, 0, WIDTH, HEIGHT);
+
+                for (const line of lines) {
+                    drawLine(ctxb, line);
                 }
             }
             if (event.key == "j") {
@@ -243,13 +274,19 @@
         });
         document.addEventListener("keyup", (event) => {
             if (event.key == "f" || event.key == "g") {
-                finishStroke();
+                drawLine(ctxb, currentLine);
+                console.log("drawn to board");
+                lines.push(currentLine);
+                currentLine = [];
                 draw = false;
             }
             if (oldType != "erase" && event.key == "g")
                 type = oldType;
             drawAbove();
         });
+
+        trace.width = WIDTH;
+        trace.height = HEIGHT;
 
         board.width = WIDTH;
         board.height = HEIGHT;

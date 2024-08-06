@@ -25,9 +25,10 @@ Hi guys this is my personal project to create a light and fast paint tool. I per
 |4   |1/2     |
 |5   |1       |
 ### Actions
-|Key|Action          |
-|---|----------------|
-|F  |Draw            |
-|G  |Erase           |
-|J  |Clear           |
-|H  |Set Custom Color|
+|Key   |Action          |
+|------|----------------|
+|F     |Draw            |
+|G     |Erase           |
+|J     |Clear           |
+|H     |Set Custom Color|
+|Delete|Undo            |
