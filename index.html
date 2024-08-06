@@ -129,16 +129,16 @@
                     ctxb.lineWidth = eraserSizes[size] * 2 - 2 * i;
                 else
                     ctxb.lineWidth = brushSizes[size] * 2 - 2 * i;
-                if(counter == 1) {
+                if (counter == 1) {
                     ctxb.moveTo(oldMouseX, oldMouseY);
                     ctxb.lineTo(mouseX, mouseY);
                 }
-                if(counter == 2) {
+                if (counter == 2) {
                     ctxb.moveTo(reallyOldMouseX, reallyOldMouseY);
                     ctxb.quadraticCurveTo(oldMouseX, oldMouseY, mouseX, mouseY);
                 }
                 ctxb.stroke();
-                if(counter == 0 && oldMouseX == mouseX && oldMouseY == mouseY) {
+                if (counter == 0 && oldMouseX == mouseX && oldMouseY == mouseY) {
                     ctxb.beginPath();
                     putDot();
                     ctxb.fill();
@@ -169,7 +169,7 @@
             mouseX = event.pageX;
             mouseY = event.pageY;
             drawAbove();
-            counter = (counter+1)%3;
+            counter = (counter + 1) % 3;
             if (counter == 0)
                 drawBoard();
         });
@@ -242,7 +242,7 @@
             drawAbove();
         });
         document.addEventListener("keyup", (event) => {
-            if (event.key == "f" || event.key == "g"){
+            if (event.key == "f" || event.key == "g") {
                 finishStroke();
                 draw = false;
             }
