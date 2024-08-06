@@ -32,3 +32,5 @@ Hi guys this is my personal project to create a light and fast paint tool. I per
 |J     |Clear           |
 |H     |Set Custom Color|
 |Delete|Undo            |
+### Saving
+Erm... just right click and save ig
