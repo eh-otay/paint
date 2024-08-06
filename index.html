@@ -113,13 +113,6 @@
             trace.width = WIDTH;
             trace.height = HEIGHT;
 
-            let str = "";
-            for (let i = 0; i < line.length; i++) {
-                str += line[i];
-                str += "  ";
-            }
-            console.log(str);
-
             ctx.lineCap = "round";
             for (let i = 0; i < 5; i++) {
                 ctx.beginPath();
@@ -127,9 +120,9 @@
                 ctx.strokeStyle = "rgba(" + colors[type] + ", " + (Math.pow(2, i + strength - 5) / 16) + ")";
 
                 if (type == "erase")
-                    ctx.lineWidth = eraserSizes[size] * 2 - 2 * i;
+                    ctx.lineWidth = 2 * (eraserSizes[size] - i);
                 else
-                    ctx.lineWidth = brushSizes[size] * 2 - 2 * i;
+                    ctx.lineWidth = 2 * (brushSizes[size] - i);
 
                 for (let j = 0; j + 3 < line.length; j += 3) {
                     ctx.moveTo(line[j][0], line[j][1]);
@@ -147,23 +140,20 @@
                 }
                 ctx.stroke();
 
-                if (line.length == 0) {
+                if (line.length == 1) {
+                    console.log("dot")
+
                     ctx.beginPath();
-                    putDot(line[line.length - 1][0], line[line.length - 1][1]);
+                    ctx.fillStyle = "rgba(" + colors[type] + ", " + (Math.pow(2, i + strength - 5) / 16) + ")";
+                    
+                    let r = 0;
+                    if (type == "erase")
+                        r = eraserSizes[size] - i;
+                    else
+                        r = brushSizes[size] - i;
+                    ctx.arc(line[0][0], line[0][1], r, 0, 2 * Math.PI);
                     ctx.fill();
                 }
-            }
-        }
-
-        function putDot(x, y) {
-            for (let i = 0; i < strength; i++) {
-                ctxb.fillStyle = "rgba(" + colors[type] + ", " + (Math.pow(2, i) / 16) + ")";
-                let r = 0;
-                if (type == "erase")
-                    r = eraserSizes[size] - i;
-                else
-                    r = brushSizes[size] - i;
-                ctxb.arc(x, y, r, 0, 2 * Math.PI);
             }
         }
 
@@ -179,7 +169,6 @@
             drawAbove();
             if (draw) {
                 currentLine.push([mouseX, mouseY]);
-
                 drawLine(ctxl, currentLine);
             }
         });
