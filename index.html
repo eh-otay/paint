@@ -143,12 +143,13 @@
         let currentLine;
 
         class Line {
-            constructor(pts, size, color, opacity, strength) {
+            constructor(pts, size, color, opacity, strength, erase) {
                 this.pts = pts;
                 this.size = size;
                 this.color = color;
                 this.opacity = opacity;
                 this.strength = strength;
+                this.erase = erase;
             }
         }
 
@@ -177,7 +178,7 @@
         let color = "a";
         let oldColor = "a";
         let opacity = 5;
-        let strength = 0;
+        let strength = 2;
 
         function drawCursor(x, y, size, color) {
             ctxa.fillStyle = "#ffffff";
@@ -215,6 +216,8 @@
         }
 
         function drawLine(ctx, line) {
+            if (line.erase)
+                console.log("asdf")
             trace.width = WIDTH;
             trace.height = HEIGHT;
 
@@ -226,7 +229,7 @@
 
                 ctx.strokeStyle = "rgba(" + line.color + ", " + (o / res) / (1 - (o * i) / res) + ")";
 
-                if (line.color == "erase")
+                if (line.erase)
                     ctx.lineWidth = 2 * eraserSizes[line.size] * (1 - (1 - strengths[line.strength]) * i / res);
                 else
                     ctx.lineWidth = 2 * brushSizes[line.size] * (1 - (1 - strengths[line.strength]) * i / res);
@@ -252,7 +255,7 @@
                     ctx.fillStyle = "rgba(" + line.color + ", " + line.opacity / (5 * res - line.opacity * i) + ")";
 
                     let r = 0;
-                    if (color == "erase")
+                    if (line.erase)
                         r = eraserSizes[line.size] * (1 - (1 - strengths[line.strength]) * i / res);
                     else
                         r = brushSizes[line.size] * (1 - (1 - strengths[line.strength]) * i / res);
@@ -298,7 +301,7 @@
                     oldColor = color;
                     color = "erase";
 
-                    currentLine = new Line([], size, colors[color], opacity, strength);
+                    currentLine = new Line([], size, colors[color], opacity, strength, true);
                     currentLine.pts.push([mouseX, mouseY]);
 
                     drawLine(ctxl, currentLine);
@@ -317,7 +320,7 @@
 
                     draw = true;
 
-                    currentLine = new Line([], size, colors[color], opacity, strength);
+                    currentLine = new Line([], size, colors[color], opacity, strength, false);
                     currentLine.pts.push([mouseX, mouseY]);
 
                     drawLine(ctxl, currentLine);
@@ -397,10 +400,28 @@
             if (draw) {
                 drawLine(ctxb, currentLine);
                 lines.push(currentLine);
-                currentLine = new Line([], size, colors[color], opacity, strength);
+                currentLine = new Line([], size, colors[color], opacity, strength, color == "erase");
                 currentLine.pts.push([mouseX, mouseY]);
             }
-            
+
+            drawAbove();
+        });
+        above.addEventListener("mousedown", (event) => {
+            if (!draw) {
+                superOldMouseX = mouseX;
+                superOldMouseY = mouseY;
+                reallyOldMouseX = mouseX;
+                reallyOldMouseY = mouseY;
+                oldMouseX = mouseX;
+                oldMouseY = mouseY;
+
+                draw = true;
+
+                currentLine = new Line([], size, colors[color], opacity, strength, color == "erase");
+                currentLine.pts.push([mouseX, mouseY]);
+
+                drawLine(ctxl, currentLine);
+            }
             drawAbove();
         });
         document.addEventListener("keyup", (event) => {
@@ -412,6 +433,15 @@
             }
             if (oldColor != "erase" && event.key == "g")
                 color = oldColor;
+            drawAbove();
+        });
+        above.addEventListener("mouseup", (event) => {
+            if (draw) {
+                drawLine(ctxb, currentLine);
+                lines.push(currentLine);
+                currentLine = null;
+                draw = false;
+            }
             drawAbove();
         });
 
