@@ -127,6 +127,8 @@
         const above = document.querySelector("#above");
         const ctxa = above.getContext("2d");
 
+        const drawHere = document.querySelector("#draw-here");
+
         const WIDTH = document.body.clientWidth;
         const HEIGHT = document.body.clientHeight - d;
 
@@ -265,7 +267,7 @@
             }
         }
 
-        above.addEventListener("mousemove", (event) => {
+        drawHere.addEventListener("mousemove", (event) => {
             superOldMouseX = reallyOldMouseX;
             superOldMouseY = reallyOldMouseY;
             reallyOldMouseX = oldMouseX;
@@ -406,7 +408,7 @@
 
             drawAbove();
         });
-        above.addEventListener("mousedown", (event) => {
+        drawHere.addEventListener("mousedown", (event) => {
             if (!draw) {
                 superOldMouseX = mouseX;
                 superOldMouseY = mouseY;
@@ -435,7 +437,7 @@
                 color = oldColor;
             drawAbove();
         });
-        above.addEventListener("mouseup", (event) => {
+        drawHere.addEventListener("mouseup", (event) => {
             if (draw) {
                 drawLine(ctxb, currentLine);
                 lines.push(currentLine);
