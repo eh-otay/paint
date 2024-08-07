@@ -6,14 +6,52 @@
     <title>Paint</title>
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';" />
     <style>
+        * {
+            box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
         html,
-        body,
-        canvas {
+        body {
             width: 100%;
             height: 100%;
             margin: 0;
             padding: 0;
+        }
+
+        #bar {
+            height: 2rem;
+            width: 100%;
+            background-color: #c0c0c0;
+        }
+
+        #bar button {
+            display: inline-block;
+            height: 100%;
+            border: none;
+            outline: none;
+            background-color: #c0c0c0;
+            vertical-align: top;
+        }
+
+        #bar button:hover {
+            background-color: #d0d0d0;
+        }
+
+        #bar button:active {
+            background-color: #b0b0b0;
+        }
+
+        #draw-here {
             position: absolute;
+            width: 100%;
+            height: calc(100%-2rem);
+            top: 2rem;
+        }
+
+        canvas {
+            position: absolute;
+            height: calc(100%-2rem);
             left: 0;
             top: 0;
             cursor: none;
@@ -22,10 +60,64 @@
 </head>
 
 <body>
-    <canvas id="board"></canvas>
-    <canvas id="line"></canvas>
-    <canvas id="above"></canvas>
+    <div id="bar">
+        <button onclick="saveImage()">
+            save
+        </button>
+
+        <button>
+            color
+        </button>
+        <button onclick="color='erase'" style="background-color: rgb(255, 255, 255);" title="hold g"></button>
+        <button onclick="color='a'" style="background-color: rgb(0, 0, 0);color: #fff;" title="q"></button>
+        <button onclick="color='b'" style="background-color: rgb(21, 7, 171);color: #fff;" title="w"></button>
+        <button onclick="color='c'" style="background-color: rgb(150, 8, 8);color: #fff;" title="e"></button>
+        <button onclick="color='d'" style="background-color: rgb(117, 114, 4);color: #fff;" title="r"></button>
+        <button onclick="color='e'" style="background-color: rgb(8, 84, 1);color: #fff;" title="t"></button>
+        <button onclick="promptCustomColor();color='custom'" id="custom" title="y to use, h to set"></button>
+
+        <button>
+            size
+        </button>
+        <button onclick="size='small'" title="a">s</button>
+        <button onclick="size='mid'" title="s">m</button>
+        <button onclick="size='large'" title="d">l</button>
+
+        <button>
+            opacity
+        </button>
+        <button onclick="opacity=1" style="background-color: rgba(255,255,255,0.2);" title="1">0.2</button>
+        <button onclick="opacity=2" style="background-color: rgba(255,255,255,0.4);" title="2">0.4</button>
+        <button onclick="opacity=3" style="background-color: rgba(255,255,255,0.6);" title="3">0.6</button>
+        <button onclick="opacity=4" style="background-color: rgba(255,255,255,0.8);" title="4">0.8</button>
+        <button onclick="opacity=5" style="background-color: rgba(255,255,255,1.0);" title="5">1.0</button>
+
+        <button>
+            strength
+        </button>
+        <button onclick="strength=0"
+            style="background-image: radial-gradient(circle at center, #000 20%, #fff 100%);color:#fff;"
+            title="6">0.2</button>
+        <button onclick="strength=1"
+            style="background-image: radial-gradient(circle at center, #000 50%, #fff 100%);color:#fff;"
+            title="7">0.5</button>
+        <button onclick="strength=2"
+            style="background-image: radial-gradient(circle at center, #000 80%, #fff 100%);color:#fff;"
+            title="8">0.8</button>
+        <button onclick="strength=3"
+            style="background-image: radial-gradient(circle at center, #000 90%, #fff 100%);color:#fff;"
+            title="9">0.9</button>
+        <button onclick="strength=4"
+            style="background-image: radial-gradient(circle at center, #000 100%, #fff 100%);color:#fff;"
+            title="0">1.0</button>
+    </div>
+    <div id="draw-here">
+        <canvas id="board"></canvas>
+        <canvas id="line"></canvas>
+        <canvas id="above"></canvas>
+    </div>
     <script>
+        const d = 2 * parseFloat(getComputedStyle(document.documentElement).fontSize);
         const board = document.querySelector("#board");
         const ctxb = board.getContext("2d");
 
@@ -36,7 +128,7 @@
         const ctxa = above.getContext("2d");
 
         const WIDTH = document.body.clientWidth;
-        const HEIGHT = document.body.clientHeight;
+        const HEIGHT = document.body.clientHeight - d;
 
         let superOldMouseX = 0;
         let superOldMouseY = 0;
@@ -48,8 +140,19 @@
         let mouseY = 0;
         let draw = false;
         let lines = [];
-        let currentLine = [];
+        let currentLine;
 
+        class Line {
+            constructor(pts, size, color, opacity, strength) {
+                this.pts = pts;
+                this.size = size;
+                this.color = color;
+                this.opacity = opacity;
+                this.strength = strength;
+            }
+        }
+
+        const gradientResolution = 10;
         const brushSizes = {
             "small": 4,
             "mid": 8,
@@ -69,15 +172,17 @@
             "e": "8, 84, 1",
             "custom": "0, 0, 0"
         }
+        const strengths = [.2, .5, .8, .9, 1];
         let size = "mid";
-        let type = "a";
-        let oldType = "a";
-        let strength = 5;
+        let color = "a";
+        let oldColor = "a";
+        let opacity = 5;
+        let strength = 0;
 
-        function drawCursor(x, y, size, type) {
+        function drawCursor(x, y, size, color) {
             ctxa.fillStyle = "#ffffff";
             ctxa.beginPath();
-            if (type == "erase") {
+            if (color == "erase") {
                 ctxa.arc(x, y, eraserSizes[size] + 4, 0, 2 * Math.PI);
             } else {
                 ctxa.arc(x, y, brushSizes[size] + 4, 0, 2 * Math.PI);
@@ -86,16 +191,16 @@
 
             ctxa.fillStyle = "#000000";
             ctxa.beginPath();
-            if (type == "erase") {
+            if (color == "erase") {
                 ctxa.arc(x, y, eraserSizes[size] + 2, 0, 2 * Math.PI);
             } else {
                 ctxa.arc(x, y, brushSizes[size] + 2, 0, 2 * Math.PI);
             }
             ctxa.fill();
 
-            ctxa.fillStyle = "rgb(" + colors[type] + ")";
+            ctxa.fillStyle = "rgb(" + colors[color] + ")";
             ctxa.beginPath();
-            if (type == "erase") {
+            if (color == "erase") {
                 ctxa.arc(x, y, eraserSizes[size], 0, 2 * Math.PI);
             } else {
                 ctxa.arc(x, y, brushSizes[size], 0, 2 * Math.PI);
@@ -106,52 +211,52 @@
         function drawAbove() {
             above.width = WIDTH;
             above.height = HEIGHT;
-            drawCursor(mouseX, mouseY, size, type);
+            drawCursor(mouseX, mouseY, size, color);
         }
 
         function drawLine(ctx, line) {
             trace.width = WIDTH;
             trace.height = HEIGHT;
 
+            const res = gradientResolution;
+            const o = line.opacity / 5;
             ctx.lineCap = "round";
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < res; i++) {
                 ctx.beginPath();
 
-                ctx.strokeStyle = "rgba(" + colors[type] + ", " + (Math.pow(2, i + strength - 5) / 16) + ")";
+                ctx.strokeStyle = "rgba(" + line.color + ", " + (o / res) / (1 - (o * i) / res) + ")";
 
-                if (type == "erase")
-                    ctx.lineWidth = 2 * (eraserSizes[size] - i);
+                if (line.color == "erase")
+                    ctx.lineWidth = 2 * eraserSizes[line.size] * (1 - (1 - strengths[line.strength]) * i / res);
                 else
-                    ctx.lineWidth = 2 * (brushSizes[size] - i);
+                    ctx.lineWidth = 2 * brushSizes[line.size] * (1 - (1 - strengths[line.strength]) * i / res);
 
-                for (let j = 0; j + 3 < line.length; j += 3) {
-                    ctx.moveTo(line[j][0], line[j][1]);
-                    ctx.bezierCurveTo(line[j + 1][0], line[j + 1][1], line[j + 2][0], line[j + 2][1], line[j + 3][0], line[j + 3][1]);
+                for (let j = 0; j + 3 < line.pts.length; j += 3) {
+                    ctx.moveTo(line.pts[j][0], line.pts[j][1]);
+                    ctx.bezierCurveTo(line.pts[j + 1][0], line.pts[j + 1][1], line.pts[j + 2][0], line.pts[j + 2][1], line.pts[j + 3][0], line.pts[j + 3][1]);
                 }
 
-                let c = (line.length - 1) % 3;
+                let c = (line.pts.length - 1) % 3;
                 if (c == 1) {
-                    ctx.moveTo(line[line.length - 2][0], line[line.length - 2][1]);
-                    ctx.lineTo(line[line.length - 1][0], line[line.length - 1][1]);
+                    ctx.moveTo(line.pts[line.pts.length - 2][0], line.pts[line.pts.length - 2][1]);
+                    ctx.lineTo(line.pts[line.pts.length - 1][0], line.pts[line.pts.length - 1][1]);
                 }
                 if (c == 2) {
-                    ctx.moveTo(line[line.length - 3][0], line[line.length - 3][1]);
-                    ctx.quadraticCurveTo(line[line.length - 2][0], line[line.length - 2][1], line[line.length - 1][0], line[line.length - 1][1]);
+                    ctx.moveTo(line.pts[line.pts.length - 3][0], line.pts[line.pts.length - 3][1]);
+                    ctx.quadraticCurveTo(line.pts[line.pts.length - 2][0], line.pts[line.pts.length - 2][1], line.pts[line.pts.length - 1][0], line.pts[line.pts.length - 1][1]);
                 }
                 ctx.stroke();
 
-                if (line.length == 1) {
-                    console.log("dot")
-
+                if (line.pts.length == 1) {
                     ctx.beginPath();
-                    ctx.fillStyle = "rgba(" + colors[type] + ", " + (Math.pow(2, i + strength - 5) / 16) + ")";
-                    
+                    ctx.fillStyle = "rgba(" + line.color + ", " + line.opacity / (5 * res - line.opacity * i) + ")";
+
                     let r = 0;
-                    if (type == "erase")
-                        r = eraserSizes[size] - i;
+                    if (color == "erase")
+                        r = eraserSizes[line.size] * (1 - (1 - strengths[line.strength]) * i / res);
                     else
-                        r = brushSizes[size] - i;
-                    ctx.arc(line[0][0], line[0][1], r, 0, 2 * Math.PI);
+                        r = brushSizes[line.size] * (1 - (1 - strengths[line.strength]) * i / res);
+                    ctx.arc(line.pts[0][0], line.pts[0][1], r, 0, 2 * Math.PI);
                     ctx.fill();
                 }
             }
@@ -164,31 +269,23 @@
             reallyOldMouseY = oldMouseY;
             oldMouseX = mouseX;
             oldMouseY = mouseY;
-            mouseX = event.pageX;
-            mouseY = event.pageY;
+            mouseX = event.offsetX;
+            mouseY = event.offsetY;
             drawAbove();
             if (draw) {
-                currentLine.push([mouseX, mouseY]);
+                currentLine.pts.push([mouseX, mouseY]);
                 drawLine(ctxl, currentLine);
             }
         });
+
+        function promptCustomColor() {
+            colors["custom"] = prompt("r, g, b", colors["custom"]) ?? colors["custom"]
+            document.querySelector("#custom").style.backgroundColor = `rgb(${colors["custom"]})`;
+        }
+
         document.addEventListener("keydown", (event) => {
-            if (event.key == "q")
-                type = "a";
-            if (event.key == "w")
-                type = "b";
-            if (event.key == "e")
-                type = "c";
-            if (event.key == "r")
-                type = "d";
-            if (event.key == "t")
-                type = "e";
-            if (event.key == "y")
-                type = "custom";
-            if (event.key == "h")
-                colors["custom"] = prompt() ?? colors["custom"];
             if (event.key == "g") {
-                if (!draw && type != "erase") {
+                if (!draw && color != "erase") {
                     superOldMouseX = mouseX;
                     superOldMouseY = mouseY;
                     reallyOldMouseX = mouseX;
@@ -198,20 +295,17 @@
 
                     draw = true;
 
-                    oldType = type;
-                    type = "erase";
+                    oldColor = color;
+                    color = "erase";
 
-                    currentLine.push([mouseX, mouseY]);
+                    currentLine = new Line([], size, colors[color], opacity, strength);
+                    currentLine.pts.push([mouseX, mouseY]);
 
                     drawLine(ctxl, currentLine);
                 }
+                return;
             }
-            if (event.key == "a")
-                size = "small";
-            if (event.key == "s")
-                size = "mid";
-            if (event.key == "d")
-                size = "large";
+
             if (event.key == "f") {
                 if (!draw) {
                     superOldMouseX = mouseX;
@@ -223,11 +317,14 @@
 
                     draw = true;
 
-                    currentLine.push([mouseX, mouseY]);
+                    currentLine = new Line([], size, colors[color], opacity, strength);
+                    currentLine.pts.push([mouseX, mouseY]);
 
                     drawLine(ctxl, currentLine);
                 }
+                return;
             }
+
             if (event.key === "Backspace" || event.key === "Delete") {
                 lines.pop();
 
@@ -240,7 +337,9 @@
                 for (const line of lines) {
                     drawLine(ctxb, line);
                 }
+                return;
             }
+
             if (event.key == "j") {
                 lines = [];
 
@@ -249,30 +348,70 @@
 
                 ctxb.fillStyle = "rgb(" + colors["erase"] + ")";
                 ctxb.fillRect(0, 0, WIDTH, HEIGHT);
+                return;
             }
-            if (event.key == "1")
-                strength = 1;
-            if (event.key == "2")
-                strength = 2;
-            if (event.key == "3")
-                strength = 3;
-            if (event.key == "4")
-                strength = 4;
-            if (event.key == "5")
-                strength = 5;
 
+            if (event.key == "q")
+                color = "a";
+            if (event.key == "w")
+                color = "b";
+            if (event.key == "e")
+                color = "c";
+            if (event.key == "r")
+                color = "d";
+            if (event.key == "t")
+                color = "e";
+            if (event.key == "y")
+                color = "custom";
+            if (event.key == "h")
+                promptCustomColor();
+            if (event.key == "a")
+                size = "small";
+            if (event.key == "s")
+                size = "mid";
+            if (event.key == "d")
+                size = "large";
+
+            if (event.key == "1")
+                opacity = 1;
+            if (event.key == "2")
+                opacity = 2;
+            if (event.key == "3")
+                opacity = 3;
+            if (event.key == "4")
+                opacity = 4;
+            if (event.key == "5")
+                opacity = 5;
+
+            if (event.key == "6")
+                strength = 0;
+            if (event.key == "7")
+                strength = 1;
+            if (event.key == "8")
+                strength = 2;
+            if (event.key == "9")
+                strength = 3;
+            if (event.key == "0")
+                strength = 4;
+
+            if (draw) {
+                drawLine(ctxb, currentLine);
+                lines.push(currentLine);
+                currentLine = new Line([], size, colors[color], opacity, strength);
+                currentLine.pts.push([mouseX, mouseY]);
+            }
+            
             drawAbove();
         });
         document.addEventListener("keyup", (event) => {
             if (event.key == "f" || event.key == "g") {
                 drawLine(ctxb, currentLine);
-                console.log("drawn to board");
                 lines.push(currentLine);
-                currentLine = [];
+                currentLine = null;
                 draw = false;
             }
-            if (oldType != "erase" && event.key == "g")
-                type = oldType;
+            if (oldColor != "erase" && event.key == "g")
+                color = oldColor;
             drawAbove();
         });
 
@@ -284,6 +423,10 @@
 
         ctxb.fillStyle = "rgb(" + colors["erase"] + ")";
         ctxb.fillRect(0, 0, WIDTH, HEIGHT);
+
+        function saveImage() {
+            window.open(board.toDataURL("image/png").replace("image/png", "image/octet-stream"));
+        }
     </script>
 </body>
 
